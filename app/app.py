@@ -25,11 +25,6 @@ st.info(
     "generate reorder recommendations."
 )
 
-st.write(
-    "Forecast demand, identify inventory risk, "
-    "and generate reorder recommendations."
-)
-
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -113,9 +108,9 @@ risk_counts = (
 
 st.bar_chart(risk_counts)
 
-st.markdown("### Filter Inventory")
+st.markdown("### 🎛️ Inventory Filters")
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
     selected_store = st.selectbox(
@@ -129,6 +124,17 @@ with col2:
         ["All"] + sorted(test_predictions["Product ID"].unique().tolist())
     )
 
+with col3:
+    date_range = st.date_input(
+        "Date Range",
+        value=(
+            test_predictions["Date"].min().date(),
+            test_predictions["Date"].max().date()
+        ),
+        min_value=test_predictions["Date"].min().date(),
+        max_value=test_predictions["Date"].max().date()
+    )
+
 filtered_data = test_predictions.copy()
 
 if selected_store != "All":
@@ -140,6 +146,46 @@ if selected_product != "All":
     filtered_data = filtered_data[
         filtered_data["Product ID"] == selected_product
     ]
+
+if len(date_range) == 2:
+    start_date, end_date = date_range
+    filtered_data = filtered_data[
+        filtered_data["Date"].dt.date.between(start_date, end_date)
+    ]
+
+st.markdown("### 🎯 Inventory Decision Center")
+
+if len(filtered_data) > 0:
+    decision_row = filtered_data.sort_values("Date").iloc[-1]
+
+    decision_col1, decision_col2, decision_col3, decision_col4, decision_col5 = st.columns(5)
+
+    decision_col1.metric("Predicted Demand", f"{decision_row['Predicted Demand']:.0f}")
+    decision_col2.metric("Current Inventory", f"{decision_row['Inventory Level']:.0f}")
+    decision_col3.metric("Inventory Risk", str(decision_row["Risk Level"]))
+
+    decision_col4.metric(
+        "Reorder Point",
+        f"{decision_row['Reorder Point']:.0f}"
+        if "Reorder Point" in decision_row.index else "—"
+    )
+
+    decision_col5.metric(
+        "Recommended Reorder",
+        f"{decision_row['Recommended Reorder']:.0f}"
+        if "Recommended Reorder" in decision_row.index else "—"
+    )
+
+    if "Recommended Reorder" in decision_row.index:
+        if decision_row["Recommended Reorder"] > 0:
+            st.warning(
+                f"Action: Reorder approximately "
+                f"{int(np.ceil(decision_row['Recommended Reorder'])):,} units."
+            )
+        else:
+            st.success("Action: No reorder is currently recommended.")
+else:
+    st.info("No data available for the selected filters.")
 
 st.markdown("### Inventory Details")
 
@@ -159,12 +205,15 @@ st.dataframe(
     use_container_width=True
 )
 
-st.markdown("### Reorder Recommendation")
+st.markdown("### 📦 Reorder Recommendation")
 
-filtered_data["Recommended Reorder"] = (
-    filtered_data["Predicted Demand"] -
-    filtered_data["Inventory Level"]
-).clip(lower=0).apply(lambda x: int(np.ceil(x)))
+# Use the improved recommendation calculated in Notebook 02.
+# Fall back to the original calculation only if an older CSV is used.
+if "Recommended Reorder" not in filtered_data.columns:
+    filtered_data["Recommended Reorder"] = (
+        filtered_data["Predicted Demand"] -
+        filtered_data["Inventory Level"]
+    ).clip(lower=0).apply(lambda x: int(np.ceil(x)))
 
 reorder_data = filtered_data[
     filtered_data["Recommended Reorder"] > 0
@@ -242,24 +291,20 @@ st.markdown("### 📊 Model Performance")
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric(
-    "Baseline MAE",
-    "93.22"
-)
+col1.metric("Baseline MAE", "93.22")
 
 col2.metric(
     "XGBoost MAE",
-    "89.10"
+    "89.10",
+    delta="-4.12 vs baseline"
 )
 
-col3.metric(
-    "XGBoost RMSE",
-    "108.73"
-)
+col3.metric("XGBoost RMSE", "108.73")
 
 st.caption(
     "XGBoost was evaluated using a time-based test set. "
-    "Lower MAE and RMSE indicate better forecasting accuracy."
+    "Lower MAE and RMSE indicate better forecasting accuracy. "
+    "Walk-forward validation is also included in the project notebook."
 )
 
 st.markdown("### 🧠 XGBoost Feature Importance")
