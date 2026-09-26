@@ -46,13 +46,16 @@ def load_data():
         DATA_DIR / "test_predictions.csv"
     )
 
+    feature_importance = pd.read_csv(
+        DATA_DIR / "feature_importance.csv"
+    )
     test_predictions["Date"] = pd.to_datetime(
         test_predictions["Date"]
     )
 
-    return inventory_summary, test_predictions
+    return inventory_summary, test_predictions, feature_importance
 
-inventory_summary, test_predictions = load_data()
+inventory_summary, test_predictions, feature_importance = load_data()
 
 st.markdown("### Inventory Overview")
 
@@ -257,4 +260,31 @@ col3.metric(
 st.caption(
     "XGBoost was evaluated using a time-based test set. "
     "Lower MAE and RMSE indicate better forecasting accuracy."
+)
+
+st.markdown("### 🧠 XGBoost Feature Importance")
+
+st.caption(
+    "Feature importance shows which features contributed most "
+    "to the XGBoost model's predictions."
+)
+
+importance_chart = (
+    feature_importance
+    .sort_values("Importance")
+    .set_index("Feature")
+)
+
+st.bar_chart(
+    importance_chart
+)
+
+st.markdown(
+    """
+    **How to interpret this:**  
+    The model uses both historical demand patterns and calendar
+    features when generating forecasts. Rolling demand features,
+    lag features, and seasonal timing variables all contribute
+    to the prediction.
+    """
 )

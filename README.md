@@ -1,20 +1,46 @@
 # 📦 SmartStock — Demand Forecasting & Inventory Risk Intelligence
 
-SmartStock is an end-to-end Data Science project that uses historical
-retail sales data and machine learning to forecast product demand,
-identify inventory risks, and generate reorder recommendations.
+SmartStock is an end-to-end Data Science project that forecasts retail
+product demand and converts those forecasts into inventory risk and
+reorder recommendations.
 
-## 🚀 Features
+The project combines time-series feature engineering, XGBoost forecasting,
+walk-forward validation, inventory uncertainty estimation, and an
+interactive Streamlit dashboard.
 
-- Historical demand analysis
-- Time-based feature engineering
-- Demand forecasting using Random Forest and XGBoost
-- Time-based model evaluation
-- Inventory coverage analysis
-- High-risk and overstock detection
-- Reorder quantity recommendations
-- Interactive Streamlit dashboard
-- Store and product-level filtering
+## 🚀 Live Demo
+
+[Open SmartStock Dashboard](https://smartstock-anuja.streamlit.app)
+
+## 🎯 Project Objective
+
+The goal of SmartStock is to answer three practical questions:
+
+1. How much demand should we expect?
+2. Which products are at inventory risk?
+3. How much inventory should be reordered?
+
+## 🔄 Project Pipeline
+
+Historical Retail Data
+        ↓
+Data Cleaning & EDA
+        ↓
+Time-Series Feature Engineering
+        ↓
+Demand Forecasting
+        ↓
+Model Comparison
+        ↓
+Walk-Forward Validation
+        ↓
+Inventory Risk Analysis
+        ↓
+Safety Stock & Reorder Point
+        ↓
+Explainability
+        ↓
+Streamlit Dashboard
 
 ## 🛠️ Tech Stack
 
@@ -27,7 +53,7 @@ identify inventory risks, and generate reorder recommendations.
 - Seaborn
 - Streamlit
 
-## 📊 Machine Learning
+## 📊 Demand Forecasting
 
 Target variable:
 
@@ -51,7 +77,7 @@ Models evaluated:
 - Random Forest
 - XGBoost
 
-## 📈 Results
+### Original Holdout Results
 
 | Model | MAE | RMSE |
 |---|---:|---:|
@@ -59,11 +85,36 @@ Models evaluated:
 | Random Forest | 90.78 | 109.82 |
 | XGBoost | 89.10 | 108.73 |
 
+The original evaluation used a chronological train/test split rather
+than a random split.
+
+## 🔁 Walk-Forward Validation
+
+To check whether model performance was consistent across different
+historical periods, XGBoost was evaluated using three sequential
+validation windows.
+
+| Fold | MAE | RMSE |
+|---|---:|---:|
+| 1 | 89.93 | 110.63 |
+| 2 | 90.91 | 111.00 |
+| 3 | 89.17 | 108.94 |
+
+Average:
+
+- MAE: ~90.00
+- RMSE: ~110.19
+
+This evaluation preserves the chronological relationship between
+training and future observations.
+
 ## 📦 Inventory Intelligence
+
+### Inventory Coverage
 
 Inventory coverage is calculated as:
 
-Inventory Coverage = Inventory Level / Predicted Demand
+`Inventory Coverage = Inventory Level / Predicted Demand`
 
 Risk categories:
 
@@ -72,16 +123,79 @@ Risk categories:
 - 2 ≤ Coverage ≤ 3 → Low Risk
 - Coverage > 3 → Overstock
 
-The system also calculates recommended reorder quantities based
-on predicted demand and inventory levels.
+### Safety Stock
+
+Safety stock incorporates forecast uncertainty at the
+Store × Product level.
+
+The project uses:
+
+- 7-day lead time assumption
+- 95% service level
+- Store × Product forecast-error standard deviation
+
+### Reorder Point
+
+`Reorder Point = Lead-Time Demand + Safety Stock`
+
+where:
+
+`Lead-Time Demand = Predicted Daily Demand × Lead Time`
+
+The recommended reorder quantity is:
+
+`Recommended Reorder = max(Reorder Point - Inventory Level, 0)`
+
+## 🧠 Model Explainability
+
+XGBoost feature importance is used to understand which forecasting
+features contribute most to the model.
+
+The model considers:
+
+- Rolling demand patterns
+- Historical lag features
+- Weekly timing
+- Monthly timing
+- Week-of-year seasonality
+
+The feature-importance analysis indicates the relative contribution
+of features to the model; it does not indicate the direction of their
+effect on an individual prediction.
+
+## 📈 Dashboard Features
+
+The Streamlit dashboard provides:
+
+- Inventory overview metrics
+- Inventory risk distribution
+- Store filtering
+- Product filtering
+- Inventory details
+- Reorder recommendations
+- Actual vs predicted demand
+- High-risk inventory alerts
+- Model performance metrics
+- XGBoost feature importance
 
 ## 📁 Project Structure
 
+```text
 SmartStock/
+│
+├── app/
+│   └── app.py
 │
 ├── data/
 │   ├── raw/
+│   │   └── retail_store_inventory.csv
+│   │
 │   └── processed/
+│       ├── smartstock_features.csv
+│       ├── inventory_summary.csv
+│       ├── test_predictions.csv
+│       ├── walk_forward_results.csv
+│       └── feature_importance.csv
 │
 ├── notebooks/
 │   ├── 01_EDA_SmartStock.ipynb
@@ -89,13 +203,6 @@ SmartStock/
 │
 ├── models/
 │
-├── app/
-│   └── app.py
-│
 ├── requirements.txt
-└── README.md
-
-## ▶️ Run the Dashboard
-
-```bash
-streamlit run app/app.py
+├── README.md
+└── .gitignore
